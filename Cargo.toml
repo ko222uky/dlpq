@@ -1,0 +1,41 @@
+[package]
+name = "dlpq"
+license = "MIT"
+version = "0.1.0"
+edition = "2024"
+description = "Data layer for download a SQL Server table to a parquet file."
+
+[dependencies]
+
+######################################################################
+# our main dataframe library
+######################################################################
+
+polars = {version = "0.54.4", features = ["lazy", "parquet", "strings", "dtype-u8", "dtype-time"]}
+
+######################################################################
+# Wrapper for SQL Server TDS 7.3
+######################################################################
+
+tiberius = {version = "0.12.3", features = ["tokio", "chrono", "tds73", "winauth"]}
+
+
+######################################################################
+# for asynchronous I/O so main() isn't blocked while waiting...
+######################################################################
+
+futures = "0.3.32"
+
+# NOT USED BUT KEPT FOR REFERENCE:
+tokio = {version = "1.52.3", features = ["full"]} 
+tokio-util = {version = "0.7.18", features = ["compat"] }
+futures-util = "0.3.32"
+
+######################################################################
+# Other
+######################################################################
+
+uuid = "1.23.5"
+anyhow = "1.0.103"
+chrono = "0.4.45"
+
