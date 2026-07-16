@@ -533,7 +533,6 @@ pub async fn dlpq(
             }
         }
 
-
         // building our TiberiusColumns
 
         for (i, col) in data.iter().enumerate() {

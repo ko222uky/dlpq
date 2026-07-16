@@ -11,7 +11,7 @@ description = "Data layer for download a SQL Server table to a parquet file."
 # our main dataframe library
 ######################################################################
 
-polars = {version = "0.54.4", features = ["lazy", "parquet", "strings", "dtype-u8", "dtype-time"]}
+polars = {version = "0.54.4", features = ["parquet"]}
 
 ######################################################################
 # Wrapper for SQL Server TDS 7.3
@@ -25,17 +25,13 @@ tiberius = {version = "0.12.3", features = ["tokio", "chrono", "tds73", "winauth
 ######################################################################
 
 futures = "0.3.32"
-
-# NOT USED BUT KEPT FOR REFERENCE:
-tokio = {version = "1.52.3", features = ["full"]} 
+tokio = {version = "1.52.3", features = ["net", "io-util"]}
 tokio-util = {version = "0.7.18", features = ["compat"] }
-futures-util = "0.3.32"
 
 ######################################################################
 # Other
 ######################################################################
 
-uuid = "1.23.5"
 anyhow = "1.0.103"
 chrono = "0.4.45"
 
