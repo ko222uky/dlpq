@@ -1,4 +1,4 @@
-# dlpq
+# dlpq 🥒
 
 Data layer for downloading a SQL Server table (or query result) to a Parquet file.
 
