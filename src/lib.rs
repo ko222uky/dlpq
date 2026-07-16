@@ -32,8 +32,8 @@ use chrono::{NaiveDate, NaiveDateTime};
                     NOTES & CODE SNIPPETS
 *************************************************************
 
-The following was a wrong-headed approach, wherein I began making a custom enum to
-handle types not known at compile time (so dynamic).
+The following was an approach that I dropped, wherein I began making a custom enum to
+handle types not known at compile time (so dynamic), but it took Options:
 
 // #[derive(Debug)]
 // pub enum TempValue {
@@ -62,15 +62,17 @@ handle types not known at compile time (so dynamic).
 //     }
 // }
 
-
+I eventually opted to just wrap a Vec<ColumnData> instead.
 
 Also remember to use anyhow::Result<()>, with '?' for easy, general error propagation
+
+cargo doc --lib --no-deps
  
 *************************************************************/ 
 
 /**********************************************************
  * 
- *        HELPER FUNCTIONS FOR DATA HANDLING / PARSING
+ *        STRUCTS / TRAIT IMPLEMENTATIONS
  * 
 ***********************************************************/
 
@@ -81,7 +83,6 @@ Also remember to use anyhow::Result<()>, with '?' for easy, general error propag
 // as an intermediate layer. This is due to rules on implementing external traits.
 // Thus, I use this TiberiusColumn to wrap a Vec<ColumnData>, and then I can implement
 // the From<&TiberiusColumn> and TryFrom<TiberiusColumn> traits for Series.
-
 
 /// Data structure acting as a bridge betwen `Tiberius`' `ColumnData` and
 /// the `polars::prelude::Series`
@@ -157,7 +158,6 @@ impl<'a> TryFrom<TiberiusColumn<'_>> for Series {
                 }).collect();
                 Series::new(name.into(), vals)
             }
-
             ColumnData::F32(_) => {
                 let vals: Vec<Option<f32>> = col.data.into_iter().map(|cd: ColumnData<'_>| match cd {
                     ColumnData::F32(val) => val,
@@ -165,7 +165,6 @@ impl<'a> TryFrom<TiberiusColumn<'_>> for Series {
                 }).collect();
                 Series::new(name.into(), vals)
             }
-
             ColumnData::F64(_) => {
                 let vals: Vec<Option<f64>> = col.data.into_iter().map(|cd: ColumnData<'_>| match cd {
                     ColumnData::F64(val) => val,
@@ -173,7 +172,6 @@ impl<'a> TryFrom<TiberiusColumn<'_>> for Series {
                 }).collect();
                 Series::new(name.into(), vals)
             }
-
             ColumnData::Bit(_) => {
                 let vals: Vec<Option<bool>> = col.data.into_iter().map(|cd: ColumnData<'_>| match cd {
                     ColumnData::Bit(val) => val,
@@ -200,6 +198,12 @@ impl<'a> TryFrom<TiberiusColumn<'_>> for Series {
         Ok(series)
     }
 }
+
+/**********************************************************
+ * 
+ *        HELPER FUNCTIONS FOR DATA HANDLING / PARSING
+ * 
+***********************************************************/
 
 /// Extracts an Option<String> from a cow (clone-on-write) smart pointer.
 /// This is because `ColumnData::String` in `Tiberius` uses `Cow<'a, str>`
@@ -246,7 +250,6 @@ fn column_data_to_string(data: ColumnData<'static>) -> String {
             }
         },
 
-
         ColumnData::Date(_) => {
             match NaiveDate::from_sql_owned(data) {
                 Ok(Some(dt)) => dt.format("%Y-%m-%d").to_string(),
@@ -259,11 +262,10 @@ fn column_data_to_string(data: ColumnData<'static>) -> String {
     }
 }
 
-
 /**********************************************************
- * 
- *              HELPER FUNCTIONS FOR CONFIG / QUERYING
- * 
+* 
+*          HELPER FUNCTIONS FOR CONFIG / QUERYING
+* 
 ***********************************************************/
 
 /// Returns a `Config` with `AuthMethod::Integrated`
@@ -300,11 +302,10 @@ pub fn write_parquet(df: &mut DataFrame, parquet_file: String) -> Result<(), Box
     Ok(())
 }
 
-
 /**********************************************************
- * 
- *              IMPORTANT DRIVING FUNCTION
- * 
+* 
+*              IMPORTANT DRIVING FUNCTION
+* 
 ***********************************************************/
 /// Downloads a SQL query result to a target parquet file.
 /// Requires a predefined `Query` and `Config`. Two main
@@ -347,19 +348,14 @@ pub async fn dlpq(
     //      fetching data in an asynchronous manner, if needed.
     //
     // Expect first the metadata, followed by the resulting rows
+
     let mut stream: tiberius::QueryStream<'_> = query.query(&mut client).await?;
-
-
-
     let mut colnames: Vec<String> = Vec::new(); 
     let mut numcols: usize = 0;
+
     // datatypes mapped from Tiberius -> Polars (and tiberius maps it from TDS -> Tiberius enums).
     // future work may use utilize this, but it's currently for visually checking dtypes from TDS wire protocol
     let mut dtypes: Vec<DataType> = Vec::new(); 
-
-    
-
-
 
     /* Parses TDS data types. Originally intended to specify series dtypes */ 
     // Get metadata, which __should__ be the first item:
@@ -398,7 +394,6 @@ pub async fn dlpq(
                             dtypes.push(DataType::String); // catch-all type
                         } else {
                             match col.column_type() {
-
 
                                 // this mapping may not be used, if I map everything to String for simplicity,
                                 // or if I use the TryFrom / From trait implementations instead.
@@ -448,30 +443,30 @@ pub async fn dlpq(
     }
     
     /**********************************************************
-     * 
-     *              BUILDING COLUMN VECTORS
-     * Here, we have two process branches, one where we map
-     * everything to Strings, and another were we try to respect
-     * the original dtype. Note that these branches should align
-     * with the data type match patterns above.
-     * 
-     * This goes from QueryStream items -> Vec<Vec< whatever type >>
-     * and then later we go Vec<Vec< whatever type >> -> Vec<TiberiusColumn>
-     * -> Vec<Vec<Column>>
-     * 
-     * This seems a bit verbose, but the issue is due to two
-     * process branches that I've created, namely, that:
-     *      (1) If we convert everything to String, then we can know
-     *          the data type at compile time.
-     * 
-     *      (2) Otherwise, we cannot know the data type at compile time.
-     *          So, we used the custom ColumnData Enum provided by
-     *          Tiberius, and we build that into the TiberiusColumn,
-     *          which is my custom data struct; and for TiberiusColumn,
-     *          I implemented a try_from() to map it to a PolarsResult<Series>
-     * 
-     * With the Series object, I can easily create the columns
-     * for my dataframe.
+    * 
+    *              BUILDING COLUMN VECTORS
+    * Here, we have two process branches, one where we map
+    * everything to Strings, and another were we try to respect
+    * the original dtype. Note that these branches should align
+    * with the data type match patterns above.
+    * 
+    * This goes from QueryStream items -> Vec<Vec< whatever type >>
+    * and then later we go Vec<Vec< whatever type >> -> Vec<TiberiusColumn>
+    * -> Vec<Vec<Column>>
+    * 
+    * This seems a bit verbose, but the issue is due to two
+    * process branches that I've created, namely, that:
+    *      (1) If we convert everything to String, then we can know
+    *          the data type at compile time.
+    * 
+    *      (2) Otherwise, we cannot know the data type at compile time.
+    *          So, we used the custom ColumnData Enum provided by
+    *          Tiberius, and we build that into the TiberiusColumn,
+    *          which is my custom data struct; and for TiberiusColumn,
+    *          I implemented a try_from() to map it to a PolarsResult<Series>
+    * 
+    * With the Series object, I can easily create the columns
+    * for my dataframe.
     ***********************************************************/
 
     // containers that we will use to build our Polars series.
@@ -509,7 +504,6 @@ pub async fn dlpq(
         //     println!("{:#?}", dcol);
         // }
 
-
     } else {
 
         // for cases where we don't know at compile time, shadow the data variable
@@ -523,7 +517,6 @@ pub async fn dlpq(
                     for (i, col_data) in row.into_iter().enumerate() {
                         let val = col_data.clone();
 
-                        
                         data[i].push(val);
                     }
                 },
@@ -551,11 +544,10 @@ pub async fn dlpq(
         // }   
     }
 
-
     /**********************************************************
-     * 
-     *              BUILDING SERIES & WRITING DATAFRAME
-     * 
+    * 
+    *              BUILDING SERIES & WRITING DATAFRAME
+    * 
     ***********************************************************/
     
     let mut columns: Vec<Column> = vec![];
@@ -579,8 +571,6 @@ pub async fn dlpq(
         // we need to create target file prior to using ParquetWriter
         let _ = write_parquet(&mut df, parquet_file); // we don't really need the return in this case. ignore it.
 
-
-
     } else {
 
         // building using TiberiusColumn custom data struct,
@@ -601,9 +591,6 @@ pub async fn dlpq(
     Ok(())
 }
 
-
-
-
 /*******************************************************
  
                         TEST CODE 
@@ -612,7 +599,7 @@ pub async fn dlpq(
 // Can start populating this with test cases.
 
 /// Boilerplate code for an example function for a unit test.
-pub fn add(left: u64, right: u64) -> u64 {
+fn add(left: u64, right: u64) -> u64 {
     left + right
 }
 
