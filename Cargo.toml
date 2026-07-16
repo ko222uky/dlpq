@@ -4,6 +4,7 @@ license = "MIT"
 version = "0.1.0"
 edition = "2024"
 description = "Data layer for download a SQL Server table to a parquet file."
+repository = "https://github.com/ko222uky/dlpq"
 
 [dependencies]
 
