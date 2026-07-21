@@ -85,7 +85,8 @@ cargo doc --lib --no-deps
 // the From<&TiberiusColumn> and TryFrom<TiberiusColumn> traits for Series.
 
 /// Data structure acting as a bridge betwen `Tiberius`' `ColumnData` and
-/// the `polars::prelude::Series`
+/// the `polars::prelude::Series`. Needs lifetime annotation because the 
+/// ColumnData Enum has variants like Cow<'a, str>.
 pub struct TiberiusColumn<'a> {
     pub name: String,
     pub data: Vec<ColumnData<'a>>
@@ -471,6 +472,8 @@ pub async fn dlpq(
 
     // containers that we will use to build our Polars series.
     // Base init is Vec<Vec<String>>, but this can be shadowed later.
+    // Placing data here scopes it so that our references (i.e., possible Cow strings
+    // in the ColumnData) live long enough.
     let mut data: Vec<Vec<String>> = vec![Vec::new(); numcols];
 
     // for the dynamic case, I use the custom struct and make 
@@ -485,10 +488,10 @@ pub async fn dlpq(
             match item {
 
                 // I feel like this is far from idiomatic rust, but it makes sense to me now.
+                // Removed clone() and instead moved ownership to col_data -> column_data_to_string
                 QueryItem::Row(row) => {
-                    for (i, (_col, col_data)) in row.cells().enumerate() {
-                        let val_str = column_data_to_string(col_data.clone());
-                        data[i].push(val_str)
+                    for (i, col_data) in row.into_iter().enumerate() {
+                        data[i].push(column_data_to_string(col_data))
                     }
                 },
 
@@ -513,11 +516,10 @@ pub async fn dlpq(
             match item {
 
                 // I feel like so far, what I've been doing is far from idiomatic rust, but it makes sense to me now.
+                // .into_iter() moves the data, so that ownership moves into the loop
                 QueryItem::Row(row) => {
                     for (i, col_data) in row.into_iter().enumerate() {
-                        let val = col_data.clone();
-
-                        data[i].push(val);
+                        data[i].push(col_data); // and then ownership moves again after pushing to data[i]
                     }
                 },
 
