@@ -88,9 +88,12 @@ cargo doc --lib --no-deps
 /// the `polars::prelude::Series`. Needs lifetime annotation because the 
 /// ColumnData Enum has variants like Cow<'a, str>.
 pub struct TiberiusColumn<'a> {
+    // todo: Add the column data.
     pub name: String,
     pub data: Vec<ColumnData<'a>>
 }
+
+
 
 // These Trait implementations use pattern matching to map ColumnData vals to
 // AnyValue, which can then be used to build our Polars Series with from_any_values.
@@ -321,6 +324,10 @@ pub async fn dlpq(
     query: Query<'_>, 
     map2string: bool,
     parquet_file: String) -> anyhow::Result<()> {
+
+    // TODO: I should make this return a dataframe,
+    // so that the 'download' is really a full read into memory.
+
 
     let start = Instant::now();
 
